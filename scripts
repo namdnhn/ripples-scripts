@@ -1,0 +1,39 @@
+// xử lý dữ liệu nextstrain
+python newick_generate.py
+python get_gisaid_id.py
+
+// load cac thong tin nhu cac vi tri co van de hay bo gen tham chieu
+wget https://raw.githubusercontent.com/W-L/ProblematicSites_SARS-CoV2/master/problematic_sites_sarsCov2.vcf
+wget https://hgdownload.soe.ucsc.edu/goldenPath/wuhCor1/bigZips/wuhCor1.fa.gz
+
+// sap hang da trinh tu va xu ly du lieu
+mafft --thread 10 --auto --keeplength --addfragments gisaid_data.fasta wuhCor1.fa > aligned_gisaid_seqs.fa
+faToVcf -maskSites = problematic_sites_sarsCov2.vcf aligned_gisaid_seqs.fa aligned_gisaid_seqs.vcf
+usher -t nextstrain.nh -v aligned_gisaid_seqs.vcf -o aligned_gisaid_seqs.pb -d output/
+
+// su dung ripples
+ripples -i aligned_gisaid_seqs.pb -s vn_samples.txt -d USER_SAMPLES / -T 10
+
+// thuc hien cac bo loc
+cat recombination.tsv > catRecombination.txt
+cat descendants.tsv > catDescendants.txt
+python combineAndGetPVals.py
+
+python getAllNodes.py
+awk '{print "node_"$0}' allRelevantNodes.txt > allRelevantNodeNames.txt
+matUtils extract -i aligned_gisaid_seqs.pb -s allRelevantNodes.txt -v allRelevantNodes.vcf -T 10
+python getABABA.py
+python getDescendants.py
+python makeSampleInfo.py
+
+for trio in {1..54}; do
+    python checkmutant.py $trio -r >> checkmutant.log 2>&1
+done
+awk '$19 == "False"' report.txt | awk '$14 == "False"' | awk '$11 == "False"' > final_report.txt
+
+python makeMNK.py
+python checkClusters.py
+awk '$21 <= .20 {print}' combinedCatOnlyBestWithPValsFinalReportWithInfSitesNoClusters.txt > combinedCatOnlyBestWithPValsFinalReportWithInfSitesNoClusters3SeqP02.txt
+
+python doNewTieBreakers.py
+python removeRedundant.py
