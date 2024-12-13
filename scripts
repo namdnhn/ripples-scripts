@@ -1,3 +1,10 @@
+// change environment
+export PATH="/home/diepht/namdnhn/usher/usher2/build:$PATH"
+export PATH="/home/diepht/namdnhn/usher/build:$PATH"
+
+// change library libtbb
+export LD_LIBRARY_PATH="/home/diepht/namdnhn/bemfmm/TBB/lib:$LD_LIBRARY_PATH"
+
 // xử lý dữ liệu nextstrain
 python newick_generate.py
 python get_gisaid_id.py
@@ -11,8 +18,14 @@ mafft --thread 10 --auto --keeplength --addfragments gisaid_data.fasta wuhCor1.f
 faToVcf -maskSites = problematic_sites_sarsCov2.vcf aligned_gisaid_seqs.fa aligned_gisaid_seqs.vcf
 usher -t nextstrain.nh -v aligned_gisaid_seqs.vcf -o aligned_gisaid_seqs.pb -d output/
 
-// su dung ripples
-ripples -i aligned_gisaid_seqs.pb -s vn_samples.txt -d USER_SAMPLES / -T 10
+// tao cac mau mo phong
+matUtils extract -i input.pb -S samples.tsv
+python makeMutsFile.py -s samples.tsv -r wuhan.ref.fa
+python makeRandomRecombinants.py -b 1 -s 100 -c 1 -d allNodeToMutsT10.txt -r wuhan.ref.fa -S 1BP_0M
+faToVcf recombination_1.msa.fa recombination_1.msa.vcf
+usher -i input.pb -v recombination_1.msa.vcf -o recombination_1.msa.pb
+// tao file sample
+ripples -i recombination_1.msa.pb -s recombination_1_sample.txt -n 0 -l 0 -r 0 -p 3 -d 1BP_0M -T 10
 
 // thuc hien cac bo loc
 cat recombination.tsv > catRecombination.txt
